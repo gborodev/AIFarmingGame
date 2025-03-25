@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class NpcObject : MonoBehaviour, IInteractable
+public class NpcObject : MonoBehaviour
 {
     private NpcQuestManager _questManager;
 
@@ -28,8 +28,11 @@ public class NpcObject : MonoBehaviour, IInteractable
 
     public void Interact()
     {
-        //UIManager
-        Debug.Log("Can interact");
+
+    }
+    public void EndInteract()
+    {
+
     }
 
     public Transform GetTransform()
