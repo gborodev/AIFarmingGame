@@ -4,16 +4,22 @@ public class CharacterManager : Singleton<CharacterManager>
 {
     public CharacterStats CharacterStats { get; private set; }
 
-    private void Start()
+    protected override void Awake()
     {
+        base.Awake();
+
         CharacterStats = new CharacterStats();
-
-
     }
 
     private void Update()
     {
         if (Input.GetKeyDown(KeyCode.Space))
-            CharacterStats.AddExpToStat(CharacterEnums.PrimaryStatType.Endurance, 1000);
+        {
+            CharacterStats.AddExpToStat(CharacterEnums.PrimaryStatType.Strength, 1000f);
+        }
+        else if (Input.GetKeyDown(KeyCode.R))
+        {
+            CharacterStats.DrainLifeStat(CharacterEnums.LifeStatType.Health, 10f);
+        }
     }
 }
