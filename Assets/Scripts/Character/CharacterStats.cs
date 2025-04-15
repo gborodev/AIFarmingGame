@@ -12,18 +12,14 @@ public class CharacterStats
 
     public List<LifeStat> LifeStats { get; private set; }
     public List<PrimaryStat> PrimaryStats { get; private set; }
-
-    private StatBonusConfig _statBonusConfig;
-
     public CharacterStats()
     {
         //Instances
         LifeStats = new List<LifeStat>()
         {
-            new LifeStat("Health", LifeStatType.Health, 100),
-            new LifeStat("Satiety", LifeStatType.Satiety, 100),
-            new LifeStat("Fatigue", LifeStatType.Fatigue, 100),
-            new LifeStat("Sickness", LifeStatType.Sickness, 100),
+            new LifeStat("Health", LifeStatType.Health, 0, 100, 100),
+            new LifeStat("Hunger", LifeStatType.Hunger, -100, 100, 100),
+            new LifeStat("Energy", LifeStatType.Energy, 0, 100, 100),
         };
         PrimaryStats = new List<PrimaryStat>()
         {
@@ -32,22 +28,70 @@ public class CharacterStats
             new PrimaryStat("Endurance", PrimaryStatType.Endurance, 0),
         };
 
-        _statBonusConfig = new StatBonusConfig();
-
         foreach (PrimaryStat stat in PrimaryStats)
         {
+            //Events
             stat.OnLevelUp += ApplyLifeStatBonuses;
         }
         foreach (LifeStat stat in LifeStats)
         {
-            stat.OnDrainOver += StatDrainOver;
+            //Events
         }
     }
 
-    public PrimaryStat GetPrimaryStat(PrimaryStatType statType) => PrimaryStats.FirstOrDefault(x => x.StatTypes == statType);
+    public void UpdateLifeStatValue(LifeStatType statType, float value, HashSet<LifeStatType> visited = null)
+    {
+        //Control overload method
+        visited ??= new HashSet<LifeStatType>();
 
-    public LifeStat GetLifeStat(LifeStatType statType) => LifeStats.FirstOrDefault(x => x.StatTypes == statType);
+        if (visited.Contains(statType)) return; // döngüyü engelle
 
+        visited.Add(statType);
+
+        //Get Stat
+        LifeStat stat = GetLifeStat(statType);
+        if (stat == null) return;
+
+        float statValue = stat.CurrentValue + value;
+
+        switch (statType)
+        {
+            case LifeStatType.Health:
+
+                if (statValue <= 0)
+                {
+                    CharacterEvents.CharacterStatEvents.OnDeath?.Invoke();
+                }
+                break;
+
+            default:
+
+                if (statValue <= 0)
+                {
+                    if (LifeStatPenaltyConfig.PenaltyMap.TryGetValue(statType, out var penalties))
+                    {
+                        foreach (var penalty in penalties)
+                        {
+                            UpdateLifeStatValue(penalty.AffectedStat, penalty.PenaltyAmount, visited);
+                        }
+                    }
+                }
+                break;
+        }
+
+        if (statValue >= stat.MaxValue)
+        {
+            statValue = stat.MaxValue;
+        }
+        else if (statValue <= stat.MinValue)
+        {
+            statValue = stat.MinValue;
+        }
+
+        stat.CurrentValue = statValue;
+
+        OnLifeStatsChanged?.Invoke(stat);
+    }
 
     public void AddExpToStat(PrimaryStatType statType, float expAmount)
     {
@@ -63,7 +107,7 @@ public class CharacterStats
 
     private void ApplyLifeStatBonuses(PrimaryStat stat)
     {
-        if (!_statBonusConfig.BonusMap.TryGetValue(stat.StatTypes, out var bonuses))
+        if (!PrimaryStatBonusConfig.BonusMap.TryGetValue(stat.StatType, out var bonuses))
             return;
 
         foreach (var bonus in bonuses)
@@ -79,46 +123,27 @@ public class CharacterStats
         }
     }
 
-    public void DrainLifeStat(LifeStatType statType, float drainValue)
-    {
-        LifeStat stat = GetLifeStat(statType);
+    //Getters
+    public PrimaryStat GetPrimaryStat(PrimaryStatType statType) => PrimaryStats.FirstOrDefault(x => x.StatType == statType);
 
-        if (stat == null) return;
-
-        stat.DrainStat(drainValue);
-
-        OnLifeStatsChanged?.Invoke(stat);
-    }
-
-    private void StatDrainOver(LifeStatType statType)
-    {
-        Debug.Log($"{statType} sýfýrlandý fakat þuan bir etkisi yok.");
-    }
+    public LifeStat GetLifeStat(LifeStatType statType) => LifeStats.FirstOrDefault(x => x.StatType == statType);
 }
 
 [Serializable]
 public class LifeStat : Stat<LifeStatType>
 {
-    public event Action<LifeStatType> OnDrainOver;
-
+    public int MinValue { get; private set; }
     public int MaxValue { get; set; }
     public float CurrentValue { get; set; }
 
-    public LifeStat(string statName, LifeStatType statTypes, int baseStatValue) : base(statName, statTypes, baseStatValue)
+    public LifeStat(string statName, LifeStatType statTypes, int baseMinValue, int baseMaxValue, int baseCurrentValue) : base(statName, statTypes, baseMaxValue)
     {
-        MaxValue = baseStatValue;
-        CurrentValue = MaxValue;
+        MinValue = baseMinValue;
+        MaxValue = baseMaxValue;
+        CurrentValue = baseCurrentValue;
     }
 
-    public void DrainStat(float drainValue)
-    {
-        CurrentValue -= Mathf.Clamp(CurrentValue, 0, drainValue);
 
-        if (CurrentValue <= 0)
-        {
-            OnDrainOver?.Invoke(StatTypes);
-        }
-    }
 }
 
 [Serializable]
@@ -185,49 +210,76 @@ public class PrimaryStat : Stat<PrimaryStatType>
 public abstract class Stat<T>
 {
     private string _statName;
-    private T _statTypes;
+    private T _statType;
     private int _baseStatValue;
 
     public string StatName => _statName;
-    public T StatTypes => _statTypes;
+    public T StatType => _statType;
     public int BaseStatValue => _baseStatValue;
 
     public Stat(string statName, T statTypes, int baseStatValue)
     {
         _statName = statName;
-        _statTypes = statTypes;
+        _statType = statTypes;
         _baseStatValue = baseStatValue;
     }
 }
 
-public class StatBonusConfig
+public class PrimaryStatBonusConfig
 {
     public class StatBonus
     {
-        public LifeStatType TargetStat { get; set; }
-        public int BonusValue { get; set; }
+        public LifeStatType TargetStat;
+        public int BonusValue;
     }
 
-    public Dictionary<PrimaryStatType, List<StatBonus>> BonusMap = new()
+    public static readonly Dictionary<PrimaryStatType, List<StatBonus>> BonusMap = new()
     {
         {
             PrimaryStatType.Strength, new List<StatBonus>()
             {
-                new StatBonus{ TargetStat = LifeStatType.Health, BonusValue = 4 },
+                new StatBonus{ TargetStat = LifeStatType.Health, BonusValue = 5 },
+                new StatBonus{ TargetStat = LifeStatType.Energy, BonusValue = 3 }
             }
 
         },
         {
             PrimaryStatType.Agility, new List<StatBonus>()
             {
-
+                new StatBonus{ TargetStat = LifeStatType.Hunger, BonusValue = 3 },
+                new StatBonus{ TargetStat = LifeStatType.Energy, BonusValue= 5 }
             }
         },
         {
             PrimaryStatType.Endurance, new List<StatBonus>()
             {
-                new StatBonus{ TargetStat = LifeStatType.Health, BonusValue = 12 },
-                new StatBonus{ TargetStat = LifeStatType.Satiety, BonusValue = 5}
+                new StatBonus{ TargetStat = LifeStatType.Health, BonusValue = 8 },
+                new StatBonus{ TargetStat = LifeStatType.Hunger, BonusValue = 5}
+            }
+        }
+    };
+}
+public class LifeStatPenaltyConfig
+{
+    public class StatPenalty
+    {
+        public LifeStatType AffectedStat;
+        public float PenaltyAmount;
+    }
+
+    public static readonly Dictionary<LifeStatType, List<StatPenalty>> PenaltyMap = new()
+    {
+        {
+            LifeStatType.Hunger, new List<StatPenalty>
+            {
+                new StatPenalty { AffectedStat = LifeStatType.Health, PenaltyAmount = -5f },
+                new StatPenalty { AffectedStat = LifeStatType.Energy, PenaltyAmount = -3f }
+            }
+        },
+        {
+            LifeStatType.Energy, new List<StatPenalty>
+            {
+                new StatPenalty { AffectedStat = LifeStatType.Hunger, PenaltyAmount = -5f },
             }
         }
     };

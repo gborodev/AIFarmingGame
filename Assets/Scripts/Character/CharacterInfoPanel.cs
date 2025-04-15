@@ -29,7 +29,10 @@ public class CharacterInfoPanel : MonoBehaviour
             LifeStat lifeStat = lifeStats[i];
 
             CharacterInfoSlot infoSlot = Instantiate(_infoSlotPrefab, _characterLifeStatPanel);
-            _lifeStatSlots.Add(lifeStat.StatTypes, infoSlot);
+            _lifeStatSlots.Add(lifeStat.StatType, infoSlot);
+
+            infoSlot.OnSlotEnter += (slot) => TooltipManager.Instance.ShowTooltip(lifeStat);
+            infoSlot.OnSlotExit += (slot) => TooltipManager.Instance.HideTooltip();
 
             LifeStatUpdate(lifeStat);
         }
@@ -38,7 +41,10 @@ public class CharacterInfoPanel : MonoBehaviour
             PrimaryStat primaryStat = primaryStats[i];
 
             CharacterInfoSlot infoSlot = Instantiate(_infoSlotPrefab, _characterPrimaryStatPanel);
-            _primaryStatSlots.Add(primaryStat.StatTypes, infoSlot);
+            _primaryStatSlots.Add(primaryStat.StatType, infoSlot);
+
+            infoSlot.OnSlotEnter += (slot) => TooltipManager.Instance.ShowTooltip(primaryStat);
+            infoSlot.OnSlotExit += (slot) => TooltipManager.Instance.HideTooltip();
 
             PrimaryStatUpdate(primaryStat);
         }
@@ -49,32 +55,31 @@ public class CharacterInfoPanel : MonoBehaviour
 
     private void LifeStatUpdate(LifeStat stat)
     {
-        if (_lifeStatSlots.TryGetValue(stat.StatTypes, out CharacterInfoSlot slot))
+        if (!_lifeStatSlots.TryGetValue(stat.StatType, out CharacterInfoSlot slot)) return;
+
+        float ratio = stat.CurrentValue / stat.MaxValue;
+
+        string colorHex = string.Empty;
+        if (ratio <= 0.25f)
         {
-            float ratio = stat.CurrentValue / stat.MaxValue;
-
-            string colorHex = string.Empty;
-            if (ratio < 0.25f)
-            {
-                colorHex = ColorUtility.ToHtmlStringRGB(Color.red);
-            }
-            else if (ratio < 0.5f)
-            {
-                colorHex = ColorUtility.ToHtmlStringRGB(Color.yellow);
-            }
-            else
-            {
-                colorHex = ColorUtility.ToHtmlStringRGB(Color.white);
-            }
-
-
-            slot.SetText($"{stat.StatName}: <color=#{colorHex}>{stat.CurrentValue}</color> / {stat.MaxValue}");
+            colorHex = ColorUtility.ToHtmlStringRGB(Color.red);
         }
+        else if (ratio <= 0.5f)
+        {
+            colorHex = ColorUtility.ToHtmlStringRGB(Color.yellow);
+        }
+        else
+        {
+            colorHex = ColorUtility.ToHtmlStringRGB(Color.white);
+        }
+
+
+        slot.SetText($"{stat.StatName}: <color=#{colorHex}>{stat.CurrentValue}</color> / {stat.MaxValue}");
     }
 
     private void PrimaryStatUpdate(PrimaryStat stat)
     {
-        if (_primaryStatSlots.TryGetValue(stat.StatTypes, out CharacterInfoSlot slot))
+        if (_primaryStatSlots.TryGetValue(stat.StatType, out CharacterInfoSlot slot))
         {
             slot.SetText($"{stat.StatName}: {stat.CurrentLevel}");
         }

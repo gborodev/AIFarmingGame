@@ -3,9 +3,8 @@ public class CharacterEnums
     public enum LifeStatType
     {
         Health,     //Saglik
-        Satiety,    //Tokluk
-        Fatigue,    //Yorgunluk
-        Sickness,   //Hastalik
+        Hunger,    //Tokluk
+        Energy,    //Yorgunluk
     }
 
     public enum PrimaryStatType

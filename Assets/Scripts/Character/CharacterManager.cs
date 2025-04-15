@@ -17,9 +17,9 @@ public class CharacterManager : Singleton<CharacterManager>
         {
             CharacterStats.AddExpToStat(CharacterEnums.PrimaryStatType.Strength, 1000f);
         }
-        else if (Input.GetKeyDown(KeyCode.R))
+        else if (Input.GetKeyDown(KeyCode.F))
         {
-            CharacterStats.DrainLifeStat(CharacterEnums.LifeStatType.Health, 10f);
+            CharacterStats.UpdateLifeStatValue(CharacterEnums.LifeStatType.Energy, -20);
         }
     }
 }
