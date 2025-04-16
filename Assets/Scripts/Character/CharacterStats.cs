@@ -130,7 +130,7 @@ public class CharacterStats
 }
 
 [Serializable]
-public class LifeStat : Stat<LifeStatType>
+public class LifeStat : Stat<LifeStatType>, IStatTooltipData
 {
     public int MinValue { get; private set; }
     public int MaxValue { get; set; }
@@ -143,11 +143,14 @@ public class LifeStat : Stat<LifeStatType>
         CurrentValue = baseCurrentValue;
     }
 
-
+    public string GetStatInfo()
+    {
+        return TooltipGenerator.GenerateLifeStatTooltip(this);
+    }
 }
 
 [Serializable]
-public class PrimaryStat : Stat<PrimaryStatType>
+public class PrimaryStat : Stat<PrimaryStatType>, IStatTooltipData
 {
     public event Action<PrimaryStat> OnLevelUp;
 
@@ -203,6 +206,11 @@ public class PrimaryStat : Stat<PrimaryStatType>
 
             RequirementXP = (int)_levelCurve.Evaluate(CurrentLevel);
         }
+    }
+
+    public string GetStatInfo()
+    {
+        return TooltipGenerator.GeneratePrimaryStatTooltip(this);
     }
 }
 

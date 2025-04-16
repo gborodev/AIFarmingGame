@@ -19,54 +19,40 @@ public class TooltipPanel : MonoBehaviour
         if (_panelContent.gameObject.activeInHierarchy) _panelContent.gameObject.SetActive(false);
     }
 
-    public void ShowTooltip(LifeStat stat, Vector2 position)
+    public void ShowTooltip(IStatTooltipData statData, Vector2 position)
     {
         if (_tco != null && _showing == false)
         {
             StopCoroutine(_tco);
+            _tco = null;
         }
-        _tco = StartCoroutine(ShowTimer());
-
         ClearTooltip();
 
-        string name = stat.StatName;
-        string info = TooltipGenerator.GenerateLifeStatTooltip(stat);
+        string name = statData.StatName;
+        string info = statData.GetStatInfo();
 
-        _headerText.text = name;
-        _infoText1.text = info;
-    }
-    public void ShowTooltip(PrimaryStat stat, Vector2 position)
-    {
-        if (_tco != null && _showing == false)
-        {
-            StopCoroutine(_tco);
-        }
-        _tco = StartCoroutine(ShowTimer());
-
-        ClearTooltip();
-
-        string name = stat.StatName;
-        string info = TooltipGenerator.GeneratePrimaryStatTooltip(stat);
-
-        _headerText.text = name;
-        _infoText1.text = info;
+        _tco = StartCoroutine(ShowTimer(name: name, info1: info));
     }
 
     public void HideTooltip()
     {
-        if (_tco != null)
+        if (_tco != null && _showing == false)
         {
             StopCoroutine(_tco);
+            return;
         }
 
         _showing = false;
         _panelContent.gameObject.SetActive(false);
     }
 
-    private IEnumerator ShowTimer()
+    private IEnumerator ShowTimer(string name = "", string type = "", string info1 = "", string info2 = "", string gold = "")
     {
         yield return new WaitForSeconds(0.2f);
         _showing = true;
+
+        _headerText.text = name;
+        _infoText1.text = info1;
 
         _panelContent.gameObject.SetActive(true);
     }
